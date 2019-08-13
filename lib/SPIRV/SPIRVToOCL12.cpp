@@ -205,7 +205,15 @@ CallInst *SPIRVToOCL12::mutateCommonAtomicArguments(CallInst *CI, Op OC) {
         auto StartIdx = Ptr + 1;
         auto StopIdx = StartIdx + ArgsToRemove;
         Args.erase(Args.begin() + StartIdx, Args.begin() + StopIdx);
-        return OCL12SPIRVBuiltinMap::rmap(OC);
+        std::string Name = OCL12SPIRVBuiltinMap::rmap(OC);
+        if (Args[Ptr]->getType()->getPointerElementType()->isIntegerTy(64)) {
+          std::string NotExtendedName = "atomic";
+          size_t StartPos = Name.find(NotExtendedName);
+          if (StartPos == std::string::npos)
+            assert("Unexpected atomic builtin name");
+          Name.replace(StartPos, NotExtendedName.length(), "atom");
+        }
+        return Name;
       },
       &Attrs);
 }
