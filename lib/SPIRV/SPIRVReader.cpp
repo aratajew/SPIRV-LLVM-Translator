@@ -1749,7 +1749,8 @@ Value *SPIRVToLLVM::transValueWithoutDecoration(SPIRVValue *BV, Function *F,
     } else if ((OCLSPIRVBuiltinMap::rfind(OC, nullptr) ||
                 isSubgroupAvcINTELInstructionOpCode(OC) ||
                 isIntelSubgroupOpCode(OC)) &&
-               !isAtomicOpCode(OC) && !isGroupOpCode(OC) && !isPipeOpCode(OC)) {
+               !isAtomicOpCode(OC) && !isGroupOpCode(OC) && !isPipeOpCode(OC) &&
+               !isMediaBlockINTELOpcode(OC)) {
       return mapValue(
           BV, transOCLBuiltinFromInst(static_cast<SPIRVInstruction *>(BV), BB));
     } else if (isBinaryShiftLogicalBitwiseOpCode(OC) || isLogicalOpCode(OC)) {
