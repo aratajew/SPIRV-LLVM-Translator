@@ -747,6 +747,11 @@ template <> inline void SPIRVMap<std::string, Op, SPIRVInstruction>::init() {
   _SPIRV_OP(intel_sub_group_shuffle_down, SubgroupShuffleDownINTEL)
   _SPIRV_OP(intel_sub_group_shuffle_up, SubgroupShuffleUpINTEL)
   _SPIRV_OP(intel_sub_group_shuffle_xor, SubgroupShuffleXorINTEL)
+  // cl_khr_subgroup_non_uniform_vote
+  _SPIRV_OP(group_elect, GroupNonUniformElect)
+  _SPIRV_OP(group_non_uniform_all, GroupNonUniformAll)
+  _SPIRV_OP(group_non_uniform_any, GroupNonUniformAny)
+  _SPIRV_OP(group_non_uniform_all_equal, GroupNonUniformAllEqual)
 #undef _SPIRV_OP
 }
 
