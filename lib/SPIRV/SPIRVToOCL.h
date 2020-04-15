@@ -69,20 +69,6 @@ public:
   void visitCallSPRIVImageQuerySize(CallInst *CI);
 
   /// Transform __spirv_Group* to {work_group|sub_group}_*.
-  ///
-  /// Special handling of work_group_broadcast.
-  ///   __spirv_GroupBroadcast(a, vec3(x, y, z))
-  ///     =>
-  ///   work_group_broadcast(a, x, y, z)
-  ///
-  /// Transform OpenCL group builtin function names from group_
-  /// to workgroup_ and sub_group_.
-  /// Insert group operation part: reduce_/inclusive_scan_/exclusive_scan_
-  /// Transform the operation part:
-  ///    fadd/iadd/sadd => add
-  ///    fmax/smax => max
-  ///    fmin/smin => min
-  /// Keep umax/umin unchanged.
   void visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC);
 
   /// Transform __spirv_{PipeOpName} to OCL pipe builtin functions.
@@ -140,6 +126,11 @@ public:
   virtual Instruction *mutateAtomicName(CallInst *CI, Op OC) = 0;
 
   static char ID;
+
+private:
+  std::string groupOCToOCLBuiltinName(CallInst *CI, Op OC);
+  // Check if specified opcode should have return type extended to i32
+  bool extendRetTyToi32(Op OC);
 
 protected:
   Module *M;

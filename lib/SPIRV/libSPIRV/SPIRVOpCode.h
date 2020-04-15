@@ -137,6 +137,11 @@ inline bool isGroupOpCode(Op OpCode) {
   return OpGroupAll <= OC && OC <= OpGroupSMax;
 }
 
+inline bool isGroupNonUniformOpcode(Op OpCode) {
+  unsigned OC = OpCode;
+  return OpGroupNonUniformElect <= OC && OC <= OpGroupNonUniformQuadSwap;
+}
+
 inline bool isMediaBlockINTELOpcode(Op OpCode) {
   return OpCode == OpSubgroupImageMediaBlockReadINTEL ||
          OpCode == OpSubgroupImageMediaBlockWriteINTEL;

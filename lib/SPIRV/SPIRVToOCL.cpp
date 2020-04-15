@@ -88,7 +88,7 @@ void SPIRVToOCL::visitCallInst(CallInst &CI) {
     visitCallSPIRVAtomicBuiltin(&CI, OC);
     return;
   }
-  if (isGroupOpCode(OC)) {
+  if (isGroupOpCode(OC) || isGroupNonUniformOpcode(OC)) {
     visitCallSPIRVGroupBuiltin(&CI, OC);
     return;
   }
@@ -259,7 +259,7 @@ void SPIRVToOCL::visitCallSPRIVImageQuerySize(CallInst *CI) {
   CI->eraseFromParent();
 }
 
-void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
+std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
   auto DemangledName = OCLSPIRVBuiltinMap::rmap(OC);
   assert(DemangledName.find(kSPIRVName::GroupPrefix) == 0);
 
@@ -267,8 +267,16 @@ void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
 
   bool HasGroupOperation = hasGroupOperation(OC);
   if (!HasGroupOperation) {
+    /// Transform OpenCL group builtin function names from group_
+    /// to workgroup_ and sub_group_.
+    /// Insert group operation part: reduce_/inclusive_scan_/exclusive_scan_
     DemangledName = Prefix + DemangledName;
   } else {
+    /// Transform the operation part:
+    ///    fadd/iadd/sadd => add
+    ///    fmax/smax => max
+    ///    fmin/smin => min
+    /// Keep umax/umin unchanged.
     StringRef Op = DemangledName;
     Op = Op.drop_front(strlen(kSPIRVName::GroupPrefix));
     bool Unsigned = Op.front() == 'u';
@@ -294,17 +302,60 @@ void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
     DemangledName = Prefix + kSPIRVName::GroupPrefix +
         GroupOp + '_' + Op.str();
   }
+  return DemangledName;
+}
+
+bool SPIRVToOCL::extendRetTyToi32(Op OC) {
+  return OC == OpGroupAny || OC == OpGroupAll || OC == OpGroupNonUniformAny ||
+         OC == OpGroupNonUniformAll || OC == OpGroupNonUniformAllEqual ||
+         OC == OpGroupNonUniformElect;
+}
+
+void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
+  auto funcName = groupOCToOCLBuiltinName(CI, OC);
+  auto modifyArguments = [=](CallInst *, std::vector<Value *> &Args,
+                             llvm::Type *&RetTy) {
+    Type *Int32Ty = Type::getInt32Ty(*Ctx);
+    /// Remove Group Operation argument,
+    /// as in OpenCL representation this is included in the function name
+    Args.erase(Args.begin(), Args.begin() + (hasGroupOperation(OC) ? 2 : 1));
+    /// Special handling of work_group_broadcast.
+    ///   __spirv_GroupBroadcast(a, vec3(x, y, z))
+    ///     =>
+    ///   work_group_broadcast(a, x, y, z)
+    if (OC == OpGroupBroadcast)
+      expandVector(CI, Args, 1);
+    /// Special handling of sub_group_all, sub_group_any,
+    /// sub_group_non_uniform_all, sub_group_non_uniform_any.
+    ///   retTy func(i1 arg)
+    ///     =>
+    ///   retTy func(i32 arg)
+    else if (OC == OpGroupAny || OC == OpGroupAll ||
+             OC == OpGroupNonUniformAny || OC == OpGroupNonUniformAll)
+      Args[0] = CastInst::CreateZExtOrBitCast(Args[0], Int32Ty, "", CI);
+
+    /// Special handling of sub_group_all, sub_group_any,
+    /// sub_group_non_uniform_all,
+    /// sub_group_non_uniform_any, sub_group_non_uniform_all_equal.
+    ///   i1 func
+    ///     =>
+    ///   i32 func
+    if (extendRetTyToi32(OC))
+      RetTy = Int32Ty;
+
+    return funcName;
+  };
+  auto modifyRetTy = [=](CallInst *CI) -> Instruction * {
+    if (extendRetTyToi32(OC)) {
+      Type *RetTy = Type::getInt1Ty(*Ctx);
+      return CastInst::CreateTruncOrBitCast(CI, RetTy, "", CI->getNextNode());
+    } else
+      return CI;
+  };
+
   assert(CI->getCalledFunction() && "Unexpected indirect call");
   AttributeList Attrs = CI->getCalledFunction()->getAttributes();
-  mutateCallInstOCL(
-      M, CI,
-      [=](CallInst *, std::vector<Value *> &Args) {
-        Args.erase(Args.begin(), Args.begin() + (HasGroupOperation ? 2 : 1));
-        if (OC == OpGroupBroadcast)
-          expandVector(CI, Args, 1);
-        return DemangledName;
-      },
-      &Attrs);
+  mutateCallInstOCL(M, CI, modifyArguments, modifyRetTy, &Attrs);
 }
 
 void SPIRVToOCL::visitCallSPIRVPipeBuiltin(CallInst *CI, Op OC) {
