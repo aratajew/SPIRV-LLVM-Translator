@@ -765,7 +765,8 @@ public:
         else if (UnmangledName.find("bit_extract") != std::string::npos) {
           addUnsignedArgs(0, 1);
         }
-      }
+      } else if (UnmangledName.find("shuffle") != std::string::npos)
+        addUnsignedArg(1);
     }
   }
   // Auxiliarry information, it is expected that it is relevant at the moment
