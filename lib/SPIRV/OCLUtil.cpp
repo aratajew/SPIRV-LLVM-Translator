@@ -767,6 +767,8 @@ public:
         }
       } else if (UnmangledName.find("shuffle") != std::string::npos)
         addUnsignedArg(1);
+      else if (UnmangledName.find("clustered") != std::string::npos)
+        addUnsignedArg(1);
     }
   }
   // Auxiliarry information, it is expected that it is relevant at the moment

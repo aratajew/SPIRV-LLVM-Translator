@@ -272,23 +272,30 @@ std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
     /// Insert group operation part: reduce_/inclusive_scan_/exclusive_scan_
     DemangledName = Prefix + DemangledName;
   } else {
+    auto GO = getArgAs<spv::GroupOperation>(CI, 1);
     bool isBallotBitCount = (OC == OpGroupNonUniformBallotBitCount);
     /// Transform the operation part:
     ///    fadd/iadd/sadd => add
     ///    fmax/smax => max
     ///    fmin/smin => min
+    ///    logical_i[and/or/xor] => logical_[and/or/xor]
     /// Keep umax/umin unchanged.
     std::string Op = "";
     if (!isBallotBitCount) {
       Op = DemangledName;
       Op.erase(0, strlen(kSPIRVName::GroupPrefix));
+      if (isGroupNonUniformOpcode(OC))
+        Op.erase(0, strlen(kSPIRVName::NonUniformPrefix));
       bool Unsigned = Op.front() == 'u';
-      if (!Unsigned)
-        Op = Op.erase(0, 1);
+      if (!Unsigned) {
+        if (isGroupLogicalOpCode(OC))
+          Op = Op.erase(8, 1);
+        else
+          Op = Op.erase(0, 1);
+      }
       Op = '_' + Op;
     }
 
-    auto GO = getArgAs<spv::GroupOperation>(CI, 1);
     std::string GroupOp = "";
     switch (GO) {
     case GroupOperationReduce:
@@ -299,6 +306,9 @@ std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
       break;
     case GroupOperationExclusiveScan:
       GroupOp = (isBallotBitCount ? "exclusive_scan" : "scan_exclusive");
+      break;
+    case GroupOperationClusteredReduce:
+      GroupOp = "clustered_reduce";
       break;
     default:
       assert(!"Unsupported group operation!");
@@ -314,7 +324,7 @@ bool SPIRVToOCL::extendRetTyToi32(Op OC) {
   return OC == OpGroupAny || OC == OpGroupAll || OC == OpGroupNonUniformAny ||
          OC == OpGroupNonUniformAll || OC == OpGroupNonUniformAllEqual ||
          OC == OpGroupNonUniformElect || OC == OpGroupNonUniformInverseBallot ||
-         OC == OpGroupNonUniformBallotBitExtract;
+         OC == OpGroupNonUniformBallotBitExtract || isGroupLogicalOpCode(OC);
 }
 
 void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
@@ -332,13 +342,14 @@ void SPIRVToOCL::visitCallSPIRVGroupBuiltin(CallInst *CI, Op OC) {
     if (OC == OpGroupBroadcast)
       expandVector(CI, Args, 1);
     /// Special handling of sub_group_all, sub_group_any,
-    /// sub_group_non_uniform_all, sub_group_non_uniform_any, sub_group_ballot.
+    /// sub_group_non_uniform_all, sub_group_non_uniform_any, sub_group_ballot,
+    /// sub_group_clustered_logical_[and/or/xor].
     ///   retTy func(i1 arg)
     ///     =>
     ///   retTy func(i32 arg)
     else if (OC == OpGroupAny || OC == OpGroupAll ||
              OC == OpGroupNonUniformAny || OC == OpGroupNonUniformAll ||
-             OC == OpGroupNonUniformBallot)
+             OC == OpGroupNonUniformBallot || isGroupLogicalOpCode(OC))
       Args[0] = CastInst::CreateZExtOrBitCast(Args[0], Int32Ty, "", CI);
 
     /// Special handling of sub_group_all, sub_group_any,

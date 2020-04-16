@@ -132,6 +132,12 @@ inline bool hasGroupOperation(Op OpCode) {
          (OpGroupNonUniformIAdd <= OC && OC <= OpGroupNonUniformLogicalXor);
 }
 
+inline bool isGroupLogicalOpCode(Op OpCode) {
+  unsigned OC = OpCode;
+  return OC == OpGroupNonUniformLogicalAnd ||
+         OC == OpGroupNonUniformLogicalOr || OC == OpGroupNonUniformLogicalXor;
+}
+
 inline bool isGroupOpCode(Op OpCode) {
   unsigned OC = OpCode;
   return OpGroupAll <= OC && OC <= OpGroupSMax;
