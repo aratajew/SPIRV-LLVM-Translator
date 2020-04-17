@@ -132,6 +132,11 @@ inline bool hasGroupOperation(Op OpCode) {
          (OpGroupNonUniformIAdd <= OC && OC <= OpGroupNonUniformLogicalXor);
 }
 
+inline bool isNonUniformArithmeticOpCode(Op OpCode) {
+  unsigned OC = OpCode;
+  return (OpGroupNonUniformIAdd <= OC && OC <= OpGroupNonUniformLogicalXor);
+}
+
 inline bool isGroupLogicalOpCode(Op OpCode) {
   unsigned OC = OpCode;
   return OC == OpGroupNonUniformLogicalAnd ||

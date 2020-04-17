@@ -274,6 +274,7 @@ std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
   } else {
     auto GO = getArgAs<spv::GroupOperation>(CI, 1);
     bool isBallotBitCount = (OC == OpGroupNonUniformBallotBitCount);
+    bool IsNonUniform = isGroupNonUniformOpcode(OC);
     /// Transform the operation part:
     ///    fadd/iadd/sadd => add
     ///    fmax/smax => max
@@ -284,7 +285,7 @@ std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
     if (!isBallotBitCount) {
       Op = DemangledName;
       Op.erase(0, strlen(kSPIRVName::GroupPrefix));
-      if (isGroupNonUniformOpcode(OC))
+      if (IsNonUniform)
         Op.erase(0, strlen(kSPIRVName::NonUniformPrefix));
       bool Unsigned = Op.front() == 'u';
       if (!Unsigned) {
@@ -314,7 +315,12 @@ std::string SPIRVToOCL::groupOCToOCLBuiltinName(CallInst *CI, Op OC) {
       assert(!"Unsupported group operation!");
       break;
     }
-    DemangledName = Prefix + kSPIRVName::GroupPrefix +
+    bool hasNonUniformPrefix = IsNonUniform &&
+                               (GO != GroupOperationClusteredReduce) &&
+                               !isBallotBitCount;
+    DemangledName = Prefix +
+                    (hasNonUniformPrefix ? kSPIRVName::GroupNonUniformPrefix
+                                         : kSPIRVName::GroupPrefix) +
                     (isBallotBitCount ? "ballot_" : "") + GroupOp + Op;
   }
   return DemangledName;
