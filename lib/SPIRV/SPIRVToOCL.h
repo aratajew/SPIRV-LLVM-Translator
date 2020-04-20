@@ -128,8 +128,20 @@ public:
   static char ID;
 
 private:
+  /// Transform uniform group opcode to corresponding OpenCL function name,
+  /// example: GroupIAdd(Reduce) => group_iadd => work_group_reduce_add |
+  /// sub_group_reduce_add
+  std::string getUniformArithmeticBuiltinName(CallInst *CI, Op OC);
+  /// Transform non-uniform group opcode to corresponding OpenCL function name,
+  /// example: GroupNonUniformIAdd(Reduce) => group_non_uniform_iadd =>
+  /// sub_group_non_uniform_reduce_add
+  std::string getNonUniformArithmeticBuiltinName(CallInst *CI, Op OC);
+  /// Transform ballot bit count opcode to corresponding OpenCL function name,
+  /// example: GroupNonUniformBallotBitCount(Reduce) =>
+  /// group_ballot_bit_count_iadd => sub_​group_​ballot_​bit_​count
+  std::string getBallotBuiltinName(CallInst *CI, Op OC);
+  /// Transform group opcode to corresponding OpenCL function name
   std::string groupOCToOCLBuiltinName(CallInst *CI, Op OC);
-  // Check if specified opcode should have return type extended to i32
   bool extendRetTyToi32(Op OC);
 
 protected:
