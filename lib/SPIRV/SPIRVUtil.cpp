@@ -1646,9 +1646,43 @@ namespace {
 class OpenCLStdToSPIRVFriendlyIRMangleInfo : public BuiltinFuncMangleInfo {
 public:
   OpenCLStdToSPIRVFriendlyIRMangleInfo(OCLExtOpKind ExtOpId,
-                                       ArrayRef<Type *> ArgTys)
+                                       ArrayRef<Type *> ArgTys, Type* RetTy)
       : ExtOpId(ExtOpId), ArgTys(ArgTys) {
-    UnmangledName = getSPIRVExtFuncName(SPIRVEIS_OpenCL, ExtOpId);
+
+      std::string Postfix = "";
+      if (needRetTypePostfix())
+          Postfix = kSPIRVPostfix::Divider + getPostfixForReturnType(RetTy, true);
+
+      UnmangledName = getSPIRVExtFuncName(SPIRVEIS_OpenCL, ExtOpId, Postfix);
+  }
+
+  bool needRetTypePostfix() {
+      switch (ExtOpId) {
+      case OpenCLLIB::Vload_half:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vload_halfn:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vloada_halfn:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vloadn:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstore_half:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstore_half_r:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstore_halfn:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstore_halfn_r:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstorea_halfn:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstorea_halfn_r:
+          LLVM_FALLTHROUGH;
+      case OpenCLLIB::Vstoren:
+          return true;
+      default:
+          return false;
+      }
   }
 
   void init(const std::string &) override {
@@ -1696,13 +1730,14 @@ public:
 private:
   OCLExtOpKind ExtOpId;
   ArrayRef<Type *> ArgTys;
+  Type* RetTy;
 };
 } // namespace
 
 namespace SPIRV {
 std::string getSPIRVFriendlyIRFunctionName(OCLExtOpKind ExtOpId,
-                                           ArrayRef<Type *> ArgTys) {
-  OpenCLStdToSPIRVFriendlyIRMangleInfo MangleInfo(ExtOpId, ArgTys);
+                                           ArrayRef<Type *> ArgTys, Type *RetTy) {
+  OpenCLStdToSPIRVFriendlyIRMangleInfo MangleInfo(ExtOpId, ArgTys, RetTy);
   return mangleBuiltin(MangleInfo.getUnmangledName(), ArgTys, &MangleInfo);
 }
 
