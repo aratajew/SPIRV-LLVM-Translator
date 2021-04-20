@@ -4359,8 +4359,6 @@ void SPIRVToLLVM::transOCLVectorLoadStore(std::string &UnmangledName,
   }
 }
 
-// printf is not mangled. The function type should have just one argument.
-// read_image*: the second argument should be mangled as sampler.
 Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
                                                      BasicBlock *BB) {
   assert(BB && "Invalid BB");
@@ -4372,40 +4370,21 @@ Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
   assert(BM->getBuiltinSet(BC->getExtSetId()) == SPIRVEIS_OpenCL &&
          "Not OpenCL extended instruction");
 
-  bool IsPrintf = (EntryPoint == OpenCLLIB::Printf);
   UnmangledName = OCLExtOpMap::map(static_cast<OCLExtOpKind>(EntryPoint));
 
   SPIRVDBG(spvdbgs() << "[transOCLBuiltinFromExtInst] OrigUnmangledName: "
                      << UnmangledName << '\n');
-  transOCLVectorLoadStore(UnmangledName, BArgs);
 
-  std::vector<Type *> ArgTypes = transTypeVector(BC->getValueTypes(BArgs));
-
-  // TODO: we should always produce SPIR-V friendly IR and apply lowering
-  // later if needed
-  if (IsPrintf) {
-    ArgTypes.resize(1);
-  }
-
+  std::vector<Type *> ArgTypes = transTypeVector(BC->getArgTypes());
   Type *RetTy = transType(BC->getType());
-  if (BM->getDesiredBIsRepresentation() != BIsRepresentation::SPIRVFriendlyIR) {
-    // Convert extended instruction into an OpenCL built-in
-    if (IsPrintf) {
-      MangledName = "printf";
-    } else {
-      mangleOpenClBuiltin(UnmangledName, ArgTypes, MangledName);
-    }
-  } else {
-    MangledName = getSPIRVFriendlyIRFunctionName(
+  MangledName = getSPIRVFriendlyIRFunctionName(
         static_cast<OCLExtOpKind>(EntryPoint), ArgTypes, RetTy);
-  }
 
   SPIRVDBG(spvdbgs() << "[transOCLBuiltinFromExtInst] ModifiedUnmangledName: "
                      << UnmangledName << " MangledName: " << MangledName
                      << '\n');
 
-  FunctionType *FT = FunctionType::get(RetTy, ArgTypes,
-                                       /* IsVarArg */ IsPrintf);
+  FunctionType *FT = FunctionType::get(RetTy, ArgTypes, false);
   Function *F = M->getFunction(MangledName);
   if (!F) {
     F = Function::Create(FT, GlobalValue::ExternalLinkage, MangledName, M);
@@ -4415,7 +4394,7 @@ Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
     if (isFuncReadNone(UnmangledName))
       F->addFnAttr(Attribute::ReadNone);
   }
-  auto Args = transValue(BC->getValues(BArgs), F, BB);
+  auto Args = transValue(BC->getArgValues(), F, BB);
   SPIRVDBG(dbgs() << "[transOCLBuiltinFromExtInst] Function: " << *F
                   << ", Args: ";
            for (auto &I
@@ -4425,7 +4404,7 @@ Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
   CallInst *Call = CallInst::Create(F, Args, BC->getName(), BB);
   setCallingConv(Call);
   addFnAttr(Call, Attribute::NoUnwind);
-  return transOCLBuiltinPostproc(BC, Call, BB, UnmangledName);
+  return Call;
 }
 
 // SPIR-V only contains language version. Use OpenCL language version as

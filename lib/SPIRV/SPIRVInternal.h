@@ -982,6 +982,8 @@ template <> inline void SPIRVMap<std::string, Op, SPIRVOpaqueType>::init() {
 // Check if the module contains llvm.loop.* metadata
 bool hasLoopMetadata(const Module *M);
 
+bool isSPIRVOCLExtInst(const CallInst* F, OCLExtOpKind* ExtOp);
+
 // check LLVM Intrinsics type(s) for validity
 bool checkTypeForSPIRVExtendedInstLowering(IntrinsicInst *II, SPIRVModule *BM);
 } // namespace SPIRV
