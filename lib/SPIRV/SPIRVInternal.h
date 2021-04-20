@@ -347,6 +347,7 @@ const static char GroupPrefix[] = "group_";
 const static char GroupNonUniformPrefix[] = "group_non_uniform_";
 const static char ClusteredPrefix[] = "clustered_";
 const static char Prefix[] = "__spirv_";
+const static char OCLExtendedPrefix[] = "__spirv_ocl";
 const static char Postfix[] = "__";
 const static char ImageQuerySize[] = "ImageQuerySize";
 const static char ImageQuerySizeLod[] = "ImageQuerySizeLod";

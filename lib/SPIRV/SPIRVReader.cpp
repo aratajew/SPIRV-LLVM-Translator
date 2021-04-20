@@ -4324,63 +4324,20 @@ bool SPIRVToLLVM::transAlign(SPIRVValue *BV, Value *V) {
   return true;
 }
 
-void SPIRVToLLVM::transOCLVectorLoadStore(std::string &UnmangledName,
-                                          std::vector<SPIRVWord> &BArgs) {
-  if (UnmangledName.find("vload") == 0 &&
-      UnmangledName.find("n") != std::string::npos) {
-    if (BArgs.back() != 1) {
-      std::stringstream SS;
-      SS << BArgs.back();
-      UnmangledName.replace(UnmangledName.find("n"), 1, SS.str());
-    } else {
-      UnmangledName.erase(UnmangledName.find("n"), 1);
-    }
-    BArgs.pop_back();
-  } else if (UnmangledName.find("vstore") == 0) {
-    if (UnmangledName.find("n") != std::string::npos) {
-      auto T = BM->getValueType(BArgs[0]);
-      if (T->isTypeVector()) {
-        auto W = T->getVectorComponentCount();
-        std::stringstream SS;
-        SS << W;
-        UnmangledName.replace(UnmangledName.find("n"), 1, SS.str());
-      } else {
-        UnmangledName.erase(UnmangledName.find("n"), 1);
-      }
-    }
-    if (UnmangledName.find("_r") != std::string::npos) {
-      UnmangledName.replace(
-          UnmangledName.find("_r"), 2,
-          std::string("_") +
-              SPIRSPIRVFPRoundingModeMap::rmap(
-                  static_cast<SPIRVFPRoundingModeKind>(BArgs.back())));
-      BArgs.pop_back();
-    }
-  }
-}
-
 Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
                                                      BasicBlock *BB) {
   assert(BB && "Invalid BB");
-  std::string MangledName;
-  SPIRVWord EntryPoint = BC->getExtOp();
-  std::string UnmangledName;
-  std::vector<SPIRVWord> BArgs = BC->getArguments();
+  auto ExtOp = static_cast<OCLExtOpKind>(BC->getExtOp());
+  std::string UnmangledName = OCLExtOpMap::map(ExtOp);
 
   assert(BM->getBuiltinSet(BC->getExtSetId()) == SPIRVEIS_OpenCL &&
          "Not OpenCL extended instruction");
 
-  UnmangledName = OCLExtOpMap::map(static_cast<OCLExtOpKind>(EntryPoint));
-
-  SPIRVDBG(spvdbgs() << "[transOCLBuiltinFromExtInst] OrigUnmangledName: "
-                     << UnmangledName << '\n');
-
   std::vector<Type *> ArgTypes = transTypeVector(BC->getArgTypes());
   Type *RetTy = transType(BC->getType());
-  MangledName = getSPIRVFriendlyIRFunctionName(
-        static_cast<OCLExtOpKind>(EntryPoint), ArgTypes, RetTy);
+  std::string MangledName = getSPIRVFriendlyIRFunctionName(ExtOp, ArgTypes, RetTy);
 
-  SPIRVDBG(spvdbgs() << "[transOCLBuiltinFromExtInst] ModifiedUnmangledName: "
+  SPIRVDBG(spvdbgs() << "[transOCLBuiltinFromExtInst] UnmangledName: "
                      << UnmangledName << " MangledName: " << MangledName
                      << '\n');
 
@@ -4401,10 +4358,10 @@ Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
                 : Args) dbgs()
            << *I << ", ";
            dbgs() << '\n');
-  CallInst *Call = CallInst::Create(F, Args, BC->getName(), BB);
-  setCallingConv(Call);
-  addFnAttr(Call, Attribute::NoUnwind);
-  return Call;
+  CallInst *CI = CallInst::Create(F, Args, BC->getName(), BB);
+  setCallingConv(CI);
+  addFnAttr(CI, Attribute::NoUnwind);
+  return CI;
 }
 
 // SPIR-V only contains language version. Use OpenCL language version as

@@ -62,6 +62,14 @@ void SPIRVToOCLBase::visitCallInst(CallInst &CI) {
       case OpenCLLIB::Vload_halfn:
           visitCallSPIRVVLoadn(&CI, ExtOp);
           break;
+      case OpenCLLIB::Vstoren:
+      case OpenCLLIB::Vstore_halfn:
+      case OpenCLLIB::Vstorea_halfn:
+      case OpenCLLIB::Vstore_half_r:
+      case OpenCLLIB::Vstore_halfn_r:
+      case OpenCLLIB::Vstorea_halfn_r:
+          visitCallSPIRVVStore(&CI, ExtOp);
+          break;
       case OpenCLLIB::Printf:
           visitCallSPIRVPrintf(&CI, ExtOp);
           break;
@@ -692,6 +700,39 @@ void SPIRVToOCLBase::visitCallSPIRVVLoadn(CallInst *CI, OCLExtOpKind Kind) {
             Name.replace(Name.find("n"), 1, SS.str());
         }
         Args.pop_back();
+        return Name;
+      },
+      &Attrs);
+}
+
+void SPIRVToOCLBase::visitCallSPIRVVStore(CallInst *CI, OCLExtOpKind Kind) {
+  AttributeList Attrs = CI->getCalledFunction()->getAttributes();
+  mutateCallInstOCL(
+      M, CI,
+      [=](CallInst *, std::vector<Value *> &Args) {
+        std::string Name = OCLExtOpMap::map(Kind);
+        if (Kind == OpenCLLIB::Vstore_half_r || Kind == OpenCLLIB::Vstore_halfn_r || Kind == OpenCLLIB::Vstorea_halfn_r) {
+            if (ConstantInt* C = dyn_cast<ConstantInt>(Args.back())) {
+                auto RoundingMode = static_cast<SPIRVFPRoundingModeKind>(C->getZExtValue());
+                Name.replace(Name.find("_r"), 2, std::string("_") + SPIRSPIRVFPRoundingModeMap::rmap(RoundingMode));
+                Args.pop_back();
+            }
+            else {
+                assert(0 && "Vstore*_r must have FP Rounding Mode specified!");
+            }
+        }
+
+        if (Kind == OpenCLLIB::Vstore_halfn || Kind == OpenCLLIB::Vstore_halfn_r || Kind == OpenCLLIB::Vstorea_halfn || Kind == OpenCLLIB::Vstorea_halfn_r ||
+            Kind == OpenCLLIB::Vstoren) {
+            if (auto DataType = dyn_cast<VectorType>(Args[0]->getType())) {
+                auto NumElements = DataType->getElementCount().getValue();
+                assert((NumElements == 2 || NumElements == 3 || NumElements == 4 || NumElements == 8 || NumElements == 16) && "Unsupported vector size for vstore instruction!");
+                std::stringstream SS;
+                SS << NumElements;
+                Name.replace(Name.find("n"), 1, SS.str());
+            }
+        }
+
         return Name;
       },
       &Attrs);
