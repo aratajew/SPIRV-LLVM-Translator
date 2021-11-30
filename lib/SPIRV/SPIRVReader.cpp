@@ -2322,8 +2322,10 @@ Instruction *SPIRVToLLVM::transSPIRVBuiltinFromInst(SPIRVInstruction *BI,
       IsRetSigned = true;
   }
 
-  if (OC == OpImageSampleExplicitLod)
+  if (OC == OpImageSampleExplicitLod){
     AddRetTypePostfix = true;
+    IsRetSigned = true;
+  }
 
   if (AddRetTypePostfix) {
     const Type *RetTy =
