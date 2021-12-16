@@ -2992,14 +2992,14 @@ Instruction *SPIRVToLLVM::transOCLAllAny(SPIRVInstruction *I, BasicBlock *BB) {
       I, mutateCallInstOCL(
              M, CI,
              [=](CallInst *, std::vector<Value *> &Args, llvm::Type *&RetTy) {
-               Type *Int32Ty = Type::getInt32Ty(*Context);
+               Type *Int8Ty = Type::getInt8Ty(*Context);
                auto OldArg = CI->getOperand(0);
                auto NewArgTy = VectorType::get(
-                   Int32Ty, OldArg->getType()->getVectorNumElements());
+                   Int8Ty, OldArg->getType()->getVectorNumElements());
                auto NewArg =
                    CastInst::CreateSExtOrBitCast(OldArg, NewArgTy, "", CI);
                Args[0] = NewArg;
-               RetTy = Int32Ty;
+               RetTy = Type::getInt1Ty(*Context);
                return getSPIRVFuncName(I->getOpCode(), getSPIRVFuncSuffix(I));
              },
              [=](CallInst *NewCI) -> Instruction * {
@@ -3018,17 +3018,9 @@ Instruction *SPIRVToLLVM::transOCLRelational(SPIRVInstruction *I,
       I, mutateCallInstOCL(
              M, CI,
              [=](CallInst *, std::vector<Value *> &Args, llvm::Type *&RetTy) {
-               Type *IntTy = Type::getInt32Ty(*Context);
+               Type *IntTy = Type::getInt8Ty(*Context);
                RetTy = IntTy;
                if (CI->getType()->isVectorTy()) {
-                 if (cast<VectorType>(CI->getOperand(0)->getType())
-                         ->getElementType()
-                         ->isDoubleTy())
-                   IntTy = Type::getInt64Ty(*Context);
-                 if (cast<VectorType>(CI->getOperand(0)->getType())
-                         ->getElementType()
-                         ->isHalfTy())
-                   IntTy = Type::getInt16Ty(*Context);
                  RetTy = VectorType::get(IntTy,
                                          CI->getType()->getVectorNumElements());
                }
