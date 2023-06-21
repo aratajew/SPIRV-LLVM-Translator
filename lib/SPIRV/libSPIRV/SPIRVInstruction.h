@@ -3644,6 +3644,21 @@ protected:
   typedef SPIRVTensorFloat32RoundingINTELInstBase<internal::Op##x> SPIRV##x;
 _SPIRV_OP(RoundFToTF32INTEL)
 #undef _SPIRV_OP
+
+class SPIRVCacheFlushINTELInstBase : public SPIRVInstTemplateBase {
+protected:
+  SPIRVCapVec getRequiredCapability() const override {
+    return getVec(internal::CapabilityCacheControlsINTEL);
+  }
+
+  llvm::Optional<ExtensionID> getRequiredExtension() const override {
+    return ExtensionID::SPV_INTEL_cache_controls;
+  }
+};
+
+typedef SPIRVInstTemplate<SPIRVCacheFlushINTELInstBase,
+                          internal::OpCacheFlushINTEL, false, 4, false, 0>
+    SPIRVCacheFlushINTEL;
 } // namespace SPIRV
 
 #endif // SPIRV_LIBSPIRV_SPIRVINSTRUCTION_H

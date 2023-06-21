@@ -72,6 +72,7 @@ enum InternalOp {
   IOpRoundFToTF32INTEL = 6426,
   IOpMaskedGatherINTEL = 6428,
   IOpMaskedScatterINTEL = 6429,
+  IOpCacheFlushINTEL = 6444,
   IOpPrev = OpMax - 2,
   IOpForward
 };
@@ -86,7 +87,9 @@ enum InternalDecoration {
   IDecHostAccessINTEL = 6147,
   IDecInitModeINTEL = 6148,
   IDecImplementInCSRINTEL = 6149,
-  IDecArgumentAttributeINTEL = 6409
+  IDecArgumentAttributeINTEL = 6409,
+  IDecCacheControlLoadINTEL = 6442,
+  IDecCacheControlStoreINTEL = 6443
 };
 
 enum InternalCapability {
@@ -103,7 +106,8 @@ enum InternalCapability {
   ICapGlobalVariableDecorationsINTEL = 6146,
   ICapabilityComplexFloatMulDivINTEL = 6414,
   ICapabilityTensorFloat32RoundingINTEL = 6425,
-  ICapabilityMaskedGatherScatterINTEL = 6427
+  ICapabilityMaskedGatherScatterINTEL = 6427,
+  ICapabilityCacheControlsINTEL = 6441
 };
 
 enum InternalFunctionControlMask { IFunctionControlOptNoneINTELMask = 0x10000 };
@@ -132,6 +136,20 @@ enum InternalBuiltIn {
   IBuiltInGlobalHWThreadIDINTEL = 6136,
 };
 
+enum class LoadCacheControl {
+  Uncached = 0,
+  Cached = 1,
+  Streaming = 2,
+  InvalidateAfterRead = 3
+};
+
+enum class StoreCacheControl {
+  Uncached = 0,
+  WriteThrough = 1,
+  WriteBack = 2,
+  Streaming = 3
+};
+
 #define _SPIRV_OP(x, y) constexpr x x##y = static_cast<x>(I##x##y);
 _SPIRV_OP(Capability, JointMatrixINTEL)
 _SPIRV_OP(Op, TypeJointMatrixINTEL)
@@ -153,6 +171,8 @@ _SPIRV_OP(Op, MaskedScatterINTEL)
 
 _SPIRV_OP(Capability, TensorFloat32RoundingINTEL)
 _SPIRV_OP(Op, RoundFToTF32INTEL)
+
+_SPIRV_OP(Capability, CacheControlsINTEL)
 #undef _SPIRV_OP
 
 constexpr SourceLanguage SourceLanguagePython =
@@ -201,6 +221,7 @@ constexpr Op OpTypeTokenINTEL = static_cast<Op>(IOpTypeTokenINTEL);
 constexpr Op OpArithmeticFenceINTEL = static_cast<Op>(IOpArithmeticFenceINTEL);
 constexpr Op OpConvertFToBF16INTEL = static_cast<Op>(IOpConvertFToBF16INTEL);
 constexpr Op OpConvertBF16ToFINTEL = static_cast<Op>(IOpConvertBF16ToFINTEL);
+constexpr Op OpCacheFlushINTEL = static_cast<Op>(IOpCacheFlushINTEL);
 
 constexpr Decoration DecorationInitiationIntervalINTEL =
     static_cast<Decoration>(IDecInitiationIntervalINTEL);
@@ -220,6 +241,10 @@ constexpr Decoration DecorationImplementInCSRINTEL =
     static_cast<Decoration>(IDecImplementInCSRINTEL);
 constexpr Decoration DecorationArgumentAttributeINTEL =
     static_cast<Decoration>(IDecArgumentAttributeINTEL);
+constexpr Decoration DecorationCacheControlLoadINTEL =
+    static_cast<Decoration>(IDecCacheControlLoadINTEL);
+constexpr Decoration DecorationCacheControlStoreINTEL =
+    static_cast<Decoration>(IDecCacheControlStoreINTEL);
 
 constexpr Capability CapabilityFastCompositeINTEL =
     static_cast<Capability>(ICapFastCompositeINTEL);
